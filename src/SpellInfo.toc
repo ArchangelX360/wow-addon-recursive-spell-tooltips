@@ -1,0 +1,6 @@
+## Interface: 110002 ## 11.0.2
+## Title: RecursiveSpellTooltip
+## Author: Titouan Bion
+## Version: 0.0.1
+
+main.lua
