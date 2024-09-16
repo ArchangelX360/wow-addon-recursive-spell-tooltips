@@ -8,7 +8,6 @@ local function QueryAvailableSpells()
     		local spellBookItemInfo = C_SpellBook.GetSpellBookItemInfo(j, Enum.SpellBookSpellBank.Player)
     		local spellType, id, name = spellBookItemInfo.itemType, spellBookItemInfo.spellID, spellBookItemInfo.name
             if spellType == Enum.SpellBookItemType.Spell and IsSpellKnown(id) then
-                --print("Found spell " .. name .. "(" .. id .. ")")
                 table.insert(spells, {id = id, name = name})
             end
     	end
@@ -45,16 +44,26 @@ spells = QueryAvailableSpells()
 print("Found " .. table.getn(spells) .. " spells")
 talents = GetSelectedTalents()
 print("Found " .. table.getn(talents) .. " talents")
+spellsAndTalents = {}
+for _,v in ipairs(spells) do
+    table.insert(spellsAndTalents, v)
+end
+for _,v in ipairs(talents) do
+    table.insert(spellsAndTalents, v)
+end
 
 -- TODO: preprocess that and cache it
 local function listMentionedSpells(spellId)
-    print("Querying mentioned spells of ".. spellId)
+    -- print("Querying mentioned spells of ".. spellId)
     local mentioned = {}
     local description = C_Spell.GetSpellDescription(spellId) -- must be populated when `SPELL_TEXT_UPDATE` triggers on the spell ID
-    for _, spell in ipairs(spells) do
-        sIndex = string.find(description, spell.name)
-        if sIndex and spell.id ~= spellId then
-            table.insert(mentioned, spell.id)
+    -- TODO: this must be a queue, it should be recursive
+    for _, spell in ipairs(spellsAndTalents) do
+        if tonumber(spell.id) ~= tonumber(spellId) and not mentioned[spell.id] then
+            sIndex = string.find(description, spell.name)
+            if sIndex then
+                table.insert(mentioned, spell.id)
+            end
         end
     end
     return mentioned
@@ -67,39 +76,32 @@ local function addCustomSpellTooltip(tooltip, data)
 
     local mentioned = listMentionedSpells(spellID)
     local mentioned_tooltips = {}
+    local parent = tooltip
     for _, m in ipairs(mentioned) do
-        local other = ShowSpellTooltip(m, tooltip)
+        local other = ShowSpellTooltip(m, parent, parent == tooltip)
+        parent = other
         table.insert(mentioned_tooltips, other)
     end
-
-    local originalOnHide = tooltip:GetScript("OnHide")
-    local function OnTooltipHide()
-        for _, other in ipairs(mentioned) do
-            other:Hide() -- TODO: hide each of them, full bug for now
-        end
-        if originalOnHide then
-            originalOnHide()
-        end
-    end
-    tooltip:SetScript("OnHide", OnTooltipHide)
 end
 
 TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, addCustomSpellTooltip)
 
--- TODO: need to have frames dynamically, so that we can display many tooltips
+local frames = {}
 
-local MyTooltipFrame = CreateFrame("GameTooltip", "MyTooltip", UIParent, "GameTooltipTemplate")
-
-function ShowSpellTooltip(spellID, parent)
-    local p
-    if parent then
-        p = parent
-    else
-        p = UIParent
+function ShowSpellTooltip(spellID, parent, isFirst)
+    local f = frames[spellID]
+    if not f then
+        f = CreateFrame("GameTooltip", "MyTooltip"..spellID, parent, "GameTooltipTemplate")
+        frames[spellID] = f
     end
-    MyTooltipFrame:SetOwner(p, "ANCHOR_RIGHT")
-    MyTooltipFrame:SetSpellByID(spellID)
-    MyTooltipFrame:Show()
-    return MyTooltipFrame
+    f:SetOwner(parent, "ANCHOR_NONE")
+    if isFirst then
+        f:SetPoint("TOPRIGHT", parent, "TOPLEFT")
+    else
+        f:SetPoint("TOP", parent, "BOTTOM")
+    end
+    f:SetSpellByID(spellID)
+    f:Show()
+    return f
 end
 
