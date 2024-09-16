@@ -24,15 +24,13 @@ local function GetSelectedTalents()
         local nodes = C_Traits.GetTreeNodes(treeID)
         for _, nodeID in ipairs(nodes) do
             local nodeInfo = C_Traits.GetNodeInfo(configID, nodeID)
-            if nodeInfo then
-                if nodeInfo.activeEntry then
-                    local entryID = nodeInfo.activeEntry.entryID
-                    local entryInfo = C_Traits.GetEntryInfo(configID, entryID)
-                    if entryInfo.definitionID then
-                        local definitionInfo = C_Traits.GetDefinitionInfo(entryInfo.definitionID)
-                        local spellInfos = C_Spell.GetSpellInfo(definitionInfo.spellID)
-                        table.insert(talents, { id = spellInfos.spellID, name = spellInfos.name })
-                    end
+            if nodeInfo and nodeInfo.activeEntry then
+                local entryID = nodeInfo.activeEntry.entryID
+                local entryInfo = C_Traits.GetEntryInfo(configID, entryID)
+                if entryInfo.definitionID then
+                    local definitionInfo = C_Traits.GetDefinitionInfo(entryInfo.definitionID)
+                    local spellInfos = C_Spell.GetSpellInfo(definitionInfo.spellID)
+                    table.insert(talents, {id = spellInfos.spellID, name = spellInfos.name})
                 end
             end
         end
@@ -44,33 +42,20 @@ local function sortByDescreasingLength(a, b)
     return string.len(a.name) > string.len(b.name)
 end
 
-spells = QueryAvailableSpells()
-print("Found " .. table.getn(spells) .. " spells")
-talents = GetSelectedTalents()
-print("Found " .. table.getn(talents) .. " talents")
-spellsAndTalents = {}
-for _, v in ipairs(spells) do
-    table.insert(spellsAndTalents, v)
-end
-for _, v in ipairs(talents) do
-    table.insert(spellsAndTalents, v)
-end
-table.sort(spellsAndTalents, sortByDescreasingLength)
-
 local function mentions(description, needle)
-    return description:find("^" .. needle .. " ") ~= nil
-            or description:find("^" .. needle .. ",") ~= nil
-            or description:find(" " .. needle .. " ") ~= nil
-            or description:find(" " .. needle .. ",") ~= nil
-            or description:find(" " .. needle .. ".") ~= nil
+    return description:find("^"..needle.." ") ~= nil
+      or description:find("^"..needle..",") ~= nil
+      or description:find(" "..needle.." ") ~= nil
+      or description:find(" "..needle..",") ~= nil
+      or description:find(" "..needle..".") ~= nil
 end
 
 -- TODO: preprocess that and cache it
-local function listMentionedSpells(spellId)
+local function listMentionedSpells(allSpells, spellId)
     -- print("Querying mentioned spells of ".. spellId)
     local mentioned = {}
     local description = C_Spell.GetSpellDescription(spellId) -- must be populated when `SPELL_TEXT_UPDATE` triggers on the spell ID
-    for _, spell in ipairs(spellsAndTalents) do
+    for _, spell in ipairs(allSpells) do
         if tonumber(spell.id) ~= tonumber(spellId) and not mentioned[spell.id] then
             if mentions(description, spell.name) then
                 description = description:gsub(spell.name, "")
@@ -81,35 +66,14 @@ local function listMentionedSpells(spellId)
     return mentioned
 end
 
-local function addCustomSpellTooltip(tooltip, data)
-    local spellID = data.id
-    if not spellID then
-        return
-    end
-    tooltip:Show()
-
-    local mentioned = listMentionedSpells(spellID)
-    local mentioned_tooltips = {}
-    local parent = tooltip
-    for _, m in ipairs(mentioned) do
-        local other = ShowSpellTooltip(m, parent, parent == tooltip)
-        parent = other
-        table.insert(mentioned_tooltips, other)
-    end
-end
-
-TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, addCustomSpellTooltip)
-
-local frames = {}
-
-function ShowSpellTooltip(spellID, parent, isFirst)
-    local f = frames[spellID]
+local function ShowSpellTooltip(availableFrames, spellID, parent, firstTooltip)
+    local f = availableFrames[spellID]
     if not f then
-        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip" .. spellID, parent, "GameTooltipTemplate")
-        frames[spellID] = f
+        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip"..spellID, parent, "GameTooltipTemplate")
+        availableFrames[spellID] = f
     end
     f:SetOwner(parent, "ANCHOR_NONE")
-    if isFirst then
+    if firstTooltip == parent then
         f:SetPoint("TOPRIGHT", parent, "TOPLEFT")
     else
         f:SetPoint("TOP", parent, "BOTTOM")
@@ -119,3 +83,33 @@ function ShowSpellTooltip(spellID, parent, isFirst)
     return f
 end
 
+local frames = {}
+local spells = QueryAvailableSpells()
+print("Found " .. table.getn(spells) .. " spells")
+local talents = GetSelectedTalents()
+print("Found " .. table.getn(talents) .. " talents")
+local spellsAndTalents = {}
+for _,v in ipairs(spells) do
+    table.insert(spellsAndTalents, v)
+end
+for _,v in ipairs(talents) do
+    table.insert(spellsAndTalents, v)
+end
+table.sort(spellsAndTalents, sortByDescreasingLength)
+
+local function addCustomSpellTooltip(tooltip, data)
+    local spellID = data.id
+    if not spellID then return end
+    tooltip:Show()
+
+    local mentioned = listMentionedSpells(spellsAndTalents, spellID)
+    local mentioned_tooltips = {}
+    local parent = tooltip
+    for _, m in ipairs(mentioned) do
+        local other = ShowSpellTooltip(frames, m, parent, tooltip)
+        parent = other
+        table.insert(mentioned_tooltips, other)
+    end
+end
+
+TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, addCustomSpellTooltip)
