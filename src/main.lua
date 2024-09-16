@@ -30,7 +30,7 @@ local function GetSelectedTalents()
                 if entryInfo.definitionID then
                     local definitionInfo = C_Traits.GetDefinitionInfo(entryInfo.definitionID)
                     local spellInfos = C_Spell.GetSpellInfo(definitionInfo.spellID)
-                    table.insert(talents, {id = spellInfos.spellID, name = spellInfos.name})
+                    table.insert(talents, { id = spellInfos.spellID, name = spellInfos.name })
                 end
             end
         end
@@ -97,14 +97,14 @@ eventHandlerFrame:SetScript("OnEvent", function(self, event)
     for _, v in ipairs(talents) do
         table.insert(spellsAndTalents, v)
     end
-    table.sort(spellsAndTalents, function (a, b)
+    table.sort(spellsAndTalents, function(a, b)
         return string.len(a.name) > string.len(b.name)
     end)
 end)
 
 local frames = {}
 
-TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function (tooltip, data)
+TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function(tooltip, data)
     local spellID = data.id
     if spellID then
         tooltip:Show()
