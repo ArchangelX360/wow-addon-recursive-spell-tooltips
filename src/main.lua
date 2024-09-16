@@ -49,7 +49,12 @@ end
 -- TODO: preprocess that and cache it
 local function ListMentionedSpells(allSpells, spellId)
     local mentioned = {}
-    local description = C_Spell.GetSpellDescription(spellId) -- must be populated when `SPELL_TEXT_UPDATE` triggers on the spell ID
+    local description = C_Spell.GetSpellDescription(spellId)
+    if not description then
+        -- must be populated when `SPELL_TEXT_UPDATE` triggers on the spell ID
+        print("[RecursiveSpellTooltip] Description not found for spell ID: " .. spellId)
+        return mentioned
+    end
     for _, spell in ipairs(allSpells) do
         if tonumber(spell.id) ~= tonumber(spellId) and not mentioned[spell.id] then
             if description:mentions(spell.name) then
