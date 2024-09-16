@@ -67,21 +67,25 @@ local function ListMentionedSpells(allSpells, spellId)
 end
 
 local function ShowSpellTooltip(availableFrames, spellID, parentSpellId, parentTooltip, hoveredSpellTooltip)
-    local f = availableFrames[spellID .. "" .. parentSpellId]
+    local id = spellID -- + parentSpellId * 1000
+    local f = availableFrames[id]
     if not f then
-        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip" .. spellID .. "" .. parentSpellId, parentTooltip, "GameTooltipTemplate")
-        availableFrames[spellID .. "" .. parentSpellId] = f
+        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip" .. id, parentTooltip, "GameTooltipTemplate")
+        availableFrames[id] = f
     end
-    f:SetOwner(parentTooltip, "ANCHOR_NONE")
-    if hoveredSpellTooltip == parentTooltip then
-        f:SetScale(0.7)
-        f:SetPoint("TOPRIGHT", parentTooltip, "TOPLEFT")
-    else
-        f:SetScale(1)
-        f:SetPoint("TOP", parentTooltip, "BOTTOM")
+    -- if not f:IsVisible() and IsShiftKeyDown() then
+    if not f:IsVisible() then
+        f:SetOwner(parentTooltip, "ANCHOR_NONE")
+        if hoveredSpellTooltip == parentTooltip then
+            f:SetScale(0.7)
+            f:SetPoint("TOPRIGHT", parentTooltip, "TOPLEFT")
+        else
+            f:SetScale(1)
+            f:SetPoint("TOP", parentTooltip, "BOTTOM")
+        end
+        f:SetSpellByID(spellID)
+        f:Show()
     end
-    f:SetSpellByID(spellID)
-    f:Show()
     return f
 end
 
@@ -114,12 +118,10 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function(too
     if spellID then
         tooltip:Show()
         local mentioned = ListMentionedSpells(spellsAndTalents, spellID)
-        local mentioned_tooltips = {}
         local parent = tooltip
         for _, mentionedSpellId in ipairs(mentioned) do
-            local other = ShowSpellTooltip(frames, mentionedSpellId, spellId, parent, tooltip)
+            local other = ShowSpellTooltip(frames, mentionedSpellId, spellID, parent, tooltip)
             parent = other
-            table.insert(mentioned_tooltips, other)
         end
     end
 end)
