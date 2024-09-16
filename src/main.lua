@@ -7,7 +7,7 @@ local function QueryAvailableSpells()
     	for j = offset+1, offset+numSlots do
     		local spellBookItemInfo = C_SpellBook.GetSpellBookItemInfo(j, Enum.SpellBookSpellBank.Player)
     		local spellType, id, name = spellBookItemInfo.itemType, spellBookItemInfo.spellID, spellBookItemInfo.name
-            if spellType == Enum.SpellBookItemType.Spell and IsSpellKnown(id) then
+            if spellType == Enum.SpellBookItemType.Spell then
                 table.insert(spells, {id = id, name = name})
             end
     	end
@@ -24,7 +24,7 @@ local function GetSelectedTalents()
         local nodes = C_Traits.GetTreeNodes(treeID)
         for _, nodeID in ipairs(nodes) do
             local nodeInfo = C_Traits.GetNodeInfo(configID, nodeID)
-            if nodeInfo and nodeInfo.currentRank > 0 then
+            if nodeInfo then
                 if nodeInfo.activeEntry then
                     local entryID = nodeInfo.activeEntry.entryID
                     local entryInfo = C_Traits.GetEntryInfo(configID, entryID)
@@ -40,6 +40,10 @@ local function GetSelectedTalents()
     return talents
 end
 
+local function sortByDescreasingLength(a, b)
+    return string.len(a.name) > string.len(b.name)
+end
+
 spells = QueryAvailableSpells()
 print("Found " .. table.getn(spells) .. " spells")
 talents = GetSelectedTalents()
@@ -51,17 +55,25 @@ end
 for _,v in ipairs(talents) do
     table.insert(spellsAndTalents, v)
 end
+table.sort(spellsAndTalents, sortByDescreasingLength)
+
+local function mentions(description, needle)
+    return description:find("^"..needle.." ") ~= nil 
+      or description:find("^"..needle..",") ~= nil
+      or description:find(" "..needle.." ") ~= nil
+      or description:find(" "..needle..",")
+      or description:find(" "..needle..".") ~= nil
+end
 
 -- TODO: preprocess that and cache it
 local function listMentionedSpells(spellId)
     -- print("Querying mentioned spells of ".. spellId)
     local mentioned = {}
     local description = C_Spell.GetSpellDescription(spellId) -- must be populated when `SPELL_TEXT_UPDATE` triggers on the spell ID
-    -- TODO: this must be a queue, it should be recursive
     for _, spell in ipairs(spellsAndTalents) do
         if tonumber(spell.id) ~= tonumber(spellId) and not mentioned[spell.id] then
-            sIndex = string.find(description, spell.name)
-            if sIndex then
+            if mentions(description, spell.name) then
+                description = description:gsub(spell.name, "")
                 table.insert(mentioned, spell.id)
             end
         end
@@ -91,7 +103,7 @@ local frames = {}
 function ShowSpellTooltip(spellID, parent, isFirst)
     local f = frames[spellID]
     if not f then
-        f = CreateFrame("GameTooltip", "MyTooltip"..spellID, parent, "GameTooltipTemplate")
+        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip"..spellID, parent, "GameTooltipTemplate")
         frames[spellID] = f
     end
     f:SetOwner(parent, "ANCHOR_NONE")
