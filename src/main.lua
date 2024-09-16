@@ -1,5 +1,5 @@
 local function QueryAvailableSpells()
-    print("Querying spells...")
+    print("[RecursiveSpellTooltip] Querying spells...")
     local spells = {}
     for i = 1, C_SpellBook.GetNumSpellBookSkillLines() do
         local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(i)
@@ -16,7 +16,7 @@ local function QueryAvailableSpells()
 end
 
 local function GetSelectedTalents()
-    print("Querying talents...")
+    print("[RecursiveSpellTooltip] Querying talents...")
     local talents = {}
     local configID = C_ClassTalents.GetActiveConfigID()
     local configInfo = C_Traits.GetConfigInfo(configID)
@@ -38,26 +38,21 @@ local function GetSelectedTalents()
     return talents
 end
 
-local function sortByDescreasingLength(a, b)
-    return string.len(a.name) > string.len(b.name)
-end
-
-local function mentions(description, needle)
-    return description:find("^"..needle.." ") ~= nil
-      or description:find("^"..needle..",") ~= nil
-      or description:find(" "..needle.." ") ~= nil
-      or description:find(" "..needle..",") ~= nil
-      or description:find(" "..needle..".") ~= nil
+function string.mentions(self, spellName)
+    return self:find("^" .. spellName .. " ") ~= nil
+            or self:find("^" .. spellName .. ",") ~= nil
+            or self:find(" " .. spellName .. " ") ~= nil
+            or self:find(" " .. spellName .. ",") ~= nil
+            or self:find(" " .. spellName .. ".") ~= nil
 end
 
 -- TODO: preprocess that and cache it
-local function listMentionedSpells(allSpells, spellId)
-    -- print("Querying mentioned spells of ".. spellId)
+local function ListMentionedSpells(allSpells, spellId)
     local mentioned = {}
     local description = C_Spell.GetSpellDescription(spellId) -- must be populated when `SPELL_TEXT_UPDATE` triggers on the spell ID
     for _, spell in ipairs(allSpells) do
         if tonumber(spell.id) ~= tonumber(spellId) and not mentioned[spell.id] then
-            if mentions(description, spell.name) then
+            if description:mentions(spell.name) then
                 description = description:gsub(spell.name, "")
                 table.insert(mentioned, spell.id)
             end
@@ -69,7 +64,7 @@ end
 local function ShowSpellTooltip(availableFrames, spellID, parent, firstTooltip)
     local f = availableFrames[spellID]
     if not f then
-        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip"..spellID, parent, "GameTooltipTemplate")
+        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip" .. spellID, parent, "GameTooltipTemplate")
         availableFrames[spellID] = f
     end
     f:SetOwner(parent, "ANCHOR_NONE")
@@ -83,33 +78,41 @@ local function ShowSpellTooltip(availableFrames, spellID, parent, firstTooltip)
     return f
 end
 
-local frames = {}
-local spells = QueryAvailableSpells()
-print("Found " .. table.getn(spells) .. " spells")
-local talents = GetSelectedTalents()
-print("Found " .. table.getn(talents) .. " talents")
 local spellsAndTalents = {}
-for _,v in ipairs(spells) do
-    table.insert(spellsAndTalents, v)
-end
-for _,v in ipairs(talents) do
-    table.insert(spellsAndTalents, v)
-end
-table.sort(spellsAndTalents, sortByDescreasingLength)
-
-local function addCustomSpellTooltip(tooltip, data)
-    local spellID = data.id
-    if not spellID then return end
-    tooltip:Show()
-
-    local mentioned = listMentionedSpells(spellsAndTalents, spellID)
-    local mentioned_tooltips = {}
-    local parent = tooltip
-    for _, m in ipairs(mentioned) do
-        local other = ShowSpellTooltip(frames, m, parent, tooltip)
-        parent = other
-        table.insert(mentioned_tooltips, other)
+local eventHandlerFrame = CreateFrame("Frame")
+eventHandlerFrame:RegisterEvent("PLAYER_LOGIN")
+eventHandlerFrame:RegisterEvent("SPELLS_CHANGED")
+eventHandlerFrame:SetScript("OnEvent", function(self, event)
+    print("[RecursiveSpellTooltip] Refreshing spells and talents...")
+    spellsAndTalents = {}
+    local spells = QueryAvailableSpells()
+    print("[RecursiveSpellTooltip] Found " .. table.getn(spells) .. " spells")
+    local talents = GetSelectedTalents()
+    print("[RecursiveSpellTooltip] Found " .. table.getn(talents) .. " talents")
+    for _, v in ipairs(spells) do
+        table.insert(spellsAndTalents, v)
     end
-end
+    for _, v in ipairs(talents) do
+        table.insert(spellsAndTalents, v)
+    end
+    table.sort(spellsAndTalents, function (a, b)
+        return string.len(a.name) > string.len(b.name)
+    end)
+end)
 
-TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, addCustomSpellTooltip)
+local frames = {}
+
+TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function (tooltip, data)
+    local spellID = data.id
+    if spellID then
+        tooltip:Show()
+        local mentioned = ListMentionedSpells(spellsAndTalents, spellID)
+        local mentioned_tooltips = {}
+        local parent = tooltip
+        for _, m in ipairs(mentioned) do
+            local other = ShowSpellTooltip(frames, m, parent, tooltip)
+            parent = other
+            table.insert(mentioned_tooltips, other)
+        end
+    end
+end)
