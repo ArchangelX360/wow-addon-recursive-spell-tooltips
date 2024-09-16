@@ -61,19 +61,19 @@ local function ListMentionedSpells(allSpells, spellId)
     return mentioned
 end
 
-local function ShowSpellTooltip(availableFrames, spellID, parent, firstTooltip)
-    local f = availableFrames[spellID]
+local function ShowSpellTooltip(availableFrames, spellID, parentSpellId, parentTooltip, hoveredSpellTooltip)
+    local f = availableFrames[spellID .. "" .. parentSpellId]
     if not f then
-        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip" .. spellID, parent, "GameTooltipTemplate")
-        availableFrames[spellID] = f
+        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip" .. spellID .. "" .. parentSpellId, parentTooltip, "GameTooltipTemplate")
+        availableFrames[spellID .. "" .. parentSpellId] = f
     end
-    f:SetOwner(parent, "ANCHOR_NONE")
-    if firstTooltip == parent then
+    f:SetOwner(parentTooltip, "ANCHOR_NONE")
+    if hoveredSpellTooltip == parentTooltip then
         f:SetScale(0.7)
-        f:SetPoint("TOPRIGHT", parent, "TOPLEFT")
+        f:SetPoint("TOPRIGHT", parentTooltip, "TOPLEFT")
     else
         f:SetScale(1)
-        f:SetPoint("TOP", parent, "BOTTOM")
+        f:SetPoint("TOP", parentTooltip, "BOTTOM")
     end
     f:SetSpellByID(spellID)
     f:Show()
@@ -111,8 +111,8 @@ TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell, function (to
         local mentioned = ListMentionedSpells(spellsAndTalents, spellID)
         local mentioned_tooltips = {}
         local parent = tooltip
-        for _, m in ipairs(mentioned) do
-            local other = ShowSpellTooltip(frames, m, parent, tooltip)
+        for _, mentionedSpellId in ipairs(mentioned) do
+            local other = ShowSpellTooltip(frames, mentionedSpellId, spellId, parent, tooltip)
             parent = other
             table.insert(mentioned_tooltips, other)
         end
