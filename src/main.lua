@@ -2,15 +2,15 @@ local function QueryAvailableSpells()
     print("Querying spells...")
     local spells = {}
     for i = 1, C_SpellBook.GetNumSpellBookSkillLines() do
-    	local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(i)
-    	local offset, numSlots = skillLineInfo.itemIndexOffset, skillLineInfo.numSpellBookItems
-    	for j = offset+1, offset+numSlots do
-    		local spellBookItemInfo = C_SpellBook.GetSpellBookItemInfo(j, Enum.SpellBookSpellBank.Player)
-    		local spellType, id, name = spellBookItemInfo.itemType, spellBookItemInfo.spellID, spellBookItemInfo.name
+        local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(i)
+        local offset, numSlots = skillLineInfo.itemIndexOffset, skillLineInfo.numSpellBookItems
+        for j = offset + 1, offset + numSlots do
+            local spellBookItemInfo = C_SpellBook.GetSpellBookItemInfo(j, Enum.SpellBookSpellBank.Player)
+            local spellType, id, name = spellBookItemInfo.itemType, spellBookItemInfo.spellID, spellBookItemInfo.name
             if spellType == Enum.SpellBookItemType.Spell then
-                table.insert(spells, {id = id, name = name})
+                table.insert(spells, { id = id, name = name })
             end
-    	end
+        end
     end
     return spells
 end
@@ -31,7 +31,7 @@ local function GetSelectedTalents()
                     if entryInfo.definitionID then
                         local definitionInfo = C_Traits.GetDefinitionInfo(entryInfo.definitionID)
                         local spellInfos = C_Spell.GetSpellInfo(definitionInfo.spellID)
-                        table.insert(talents, {id = spellInfos.spellID, name = spellInfos.name})
+                        table.insert(talents, { id = spellInfos.spellID, name = spellInfos.name })
                     end
                 end
             end
@@ -49,20 +49,20 @@ print("Found " .. table.getn(spells) .. " spells")
 talents = GetSelectedTalents()
 print("Found " .. table.getn(talents) .. " talents")
 spellsAndTalents = {}
-for _,v in ipairs(spells) do
+for _, v in ipairs(spells) do
     table.insert(spellsAndTalents, v)
 end
-for _,v in ipairs(talents) do
+for _, v in ipairs(talents) do
     table.insert(spellsAndTalents, v)
 end
 table.sort(spellsAndTalents, sortByDescreasingLength)
 
 local function mentions(description, needle)
-    return description:find("^"..needle.." ") ~= nil 
-      or description:find("^"..needle..",") ~= nil
-      or description:find(" "..needle.." ") ~= nil
-      or description:find(" "..needle..",") ~= nil
-      or description:find(" "..needle..".") ~= nil
+    return description:find("^" .. needle .. " ") ~= nil
+            or description:find("^" .. needle .. ",") ~= nil
+            or description:find(" " .. needle .. " ") ~= nil
+            or description:find(" " .. needle .. ",") ~= nil
+            or description:find(" " .. needle .. ".") ~= nil
 end
 
 -- TODO: preprocess that and cache it
@@ -83,7 +83,9 @@ end
 
 local function addCustomSpellTooltip(tooltip, data)
     local spellID = data.id
-    if not spellID then return end
+    if not spellID then
+        return
+    end
     tooltip:Show()
 
     local mentioned = listMentionedSpells(spellID)
@@ -103,7 +105,7 @@ local frames = {}
 function ShowSpellTooltip(spellID, parent, isFirst)
     local f = frames[spellID]
     if not f then
-        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip"..spellID, parent, "GameTooltipTemplate")
+        f = CreateFrame("GameTooltip", "RecursiveSpellTooltip" .. spellID, parent, "GameTooltipTemplate")
         frames[spellID] = f
     end
     f:SetOwner(parent, "ANCHOR_NONE")
