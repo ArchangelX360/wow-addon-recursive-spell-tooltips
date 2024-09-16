@@ -61,7 +61,7 @@ local function mentions(description, needle)
     return description:find("^"..needle.." ") ~= nil 
       or description:find("^"..needle..",") ~= nil
       or description:find(" "..needle.." ") ~= nil
-      or description:find(" "..needle..",")
+      or description:find(" "..needle..",") ~= nil
       or description:find(" "..needle..".") ~= nil
 end
 
