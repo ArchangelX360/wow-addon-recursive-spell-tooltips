@@ -69,8 +69,10 @@ local function ShowSpellTooltip(availableFrames, spellID, parent, firstTooltip)
     end
     f:SetOwner(parent, "ANCHOR_NONE")
     if firstTooltip == parent then
+        f:SetScale(0.7)
         f:SetPoint("TOPRIGHT", parent, "TOPLEFT")
     else
+        f:SetScale(1)
         f:SetPoint("TOP", parent, "BOTTOM")
     end
     f:SetSpellByID(spellID)
